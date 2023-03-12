@@ -48,8 +48,10 @@ public class HorseServiceImpl implements HorseService {
     Collection<Horse> horses;
     if (requestParameters.name() == null && requestParameters.sex() == null && requestParameters.limit() == null) {
       horses = dao.getAll();
-    } else {
+    } else if (requestParameters.ownerName() == null){
       horses = dao.search(requestParameters);
+    } else {
+      horses = dao.getAll(requestParameters);
     }
     var ownerIds = horses.stream()
         .map(Horse::getOwnerId)

@@ -5,7 +5,7 @@ import {ActivatedRoute, Router} from '@angular/router';
 import {OwnerService} from 'src/app/service/owner.service';
 import {Sex} from '../../../dto/sex';
 import {ToastrService} from 'ngx-toastr';
-import {Owner} from "../../../dto/owner";
+import {Owner} from '../../../dto/owner';
 
 @Component({
   selector: 'app-horse-detail',
@@ -37,15 +37,27 @@ export class HorseDetailComponent implements OnInit {
       this.router.navigate(['**']);
     }
   }
-  goToHorse(parent: Horse) {
-    this.router.navigate(['/horses/' + Number(parent.id)]).then(r => {
+  dateOfBirthAsLocaleDate(horse: Horse): string {
+    return new Date(horse.dateOfBirth).toLocaleDateString();
+  }
+
+  formatOwnerName(owner: Owner | null | undefined): string {
+    return (owner == null)
+      ? ''
+      : `${owner.firstName} ${owner.lastName}`;
+  }
+
+  private goToHorse(parent: Horse) {
+    this.router.navigate(['/horses/' + parent.id]).then(r => {
       if (!r) {
         this.showError('Router failed');
+      } else {
+        this.getHorse(parent.id ?? 0);
       }
     });
   }
 
-  deleteHorse(id: number) {
+  private deleteHorse(id: number) {
     this.service.deleteHorse(id).subscribe({
       next: data => {
         this.notification.success(`Horse ${this.horse.name} successfully deleted`);
@@ -62,7 +74,7 @@ export class HorseDetailComponent implements OnInit {
     });
   }
 
-  getHorse(id: number) {
+  private getHorse(id: number) {
     this.service.getByID(id).subscribe(  {
       next: (data: Horse) => {
         this.horse = data;
@@ -71,12 +83,6 @@ export class HorseDetailComponent implements OnInit {
         console.log('Error getting details of horse', error);
     }
     });
-  }
-
-  public formatOwnerName(owner: Owner | null | undefined): string {
-    return (owner == null)
-      ? ''
-      : `${owner.firstName} ${owner.lastName}`;
   }
 
   private showError(message: string) {

@@ -23,7 +23,7 @@
         </label>
         <div class="col-md-10 col-lg-8"
         >
-          <td class="form-control">
+          <td class="form-control form-control-plaintext">
             {{horse.name}}
           </td>
         </div>
@@ -31,13 +31,13 @@
     </div>
     <div class="mb-2 col-lg-6">
       <div class="row">
-        <label class="col-form-label text-md-end text-muted col-md-2 col-lg-4">
+        <label class="col-form-label text-md-end text-muted col-md-12 col-lg-4 text-end">
           Date of Birth
         </label>
         <div class="col-md-10 col-lg-8"
         >
-          <td class="form-control">
-            {{horse.dateOfBirth}}
+          <td class="form-control form-control-plaintext">
+            {{dateOfBirthAsLocaleDate(horse)}}
           </td>
         </div>
       </div>
@@ -54,7 +54,7 @@
         </label>
         <div class="col-md-10 col-lg-8"
         >
-          <td class="form-control">
+          <td class="form-control form-control-plaintext">
             {{horse.sex}}
           </td>
         </div>
@@ -69,7 +69,7 @@
         <div class="col-md-10 col-lg-8"
         >
           <tr *ngIf="horse.owner !== null">
-            <td class="form-control">
+            <td class="form-control form-control-plaintext">
               {{this.formatOwnerName(horse.owner)}}
             </td>
           </tr>
@@ -88,8 +88,9 @@
         </label>
         <div class="col-md-10 col-lg-8"
         >
-          <tr *ngIf="horse.mother !== null">
-            <td class="form-control"
+          <tr *ngIf="horse.mother && horse.mother.name !== undefined">
+            <td class="form-control form-control-plaintext border-hover p-2"
+                name="goToMotherButton" type="button"
                 (click)="goToHorse(horse.mother)"
             >
               {{horse.mother.name}}
@@ -101,13 +102,14 @@
 
     <div class="mb-2 col-lg-6">
       <div class="row">
-        <label class="col-form-label text-md-end text-muted col-md-2 col-lg-4">
+        <label class="col-form-label text-md-end text-muted col-md-2 col-lg-4 text-end">
           Father
         </label>
         <div class="col-md-10 col-lg-8"
         >
-          <tr *ngIf="horse.father !== null">
-            <td class="form-control"
+          <tr *ngIf="horse.father && horse.father.name !== undefined">
+            <td class="form-control form-control-plaintext border-hover p-2"
+                name="goToFatherButton" type="button"
                 (click)="goToHorse(horse.father)">
               {{horse.father.name}}
             </td>
@@ -126,7 +128,7 @@
     <div class="col-md-10"
     >
       <tr *ngIf="horse.description !== null">
-        <td class="form-control">
+        <td class="form-control form-control-plaintext">
           {{horse.description}}
         </td>
       </tr>

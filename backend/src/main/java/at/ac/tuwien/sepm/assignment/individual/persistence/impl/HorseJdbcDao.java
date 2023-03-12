@@ -7,6 +7,12 @@ import at.ac.tuwien.sepm.assignment.individual.exception.FatalException;
 import at.ac.tuwien.sepm.assignment.individual.exception.NotFoundException;
 import at.ac.tuwien.sepm.assignment.individual.persistence.HorseDao;
 import at.ac.tuwien.sepm.assignment.individual.type.Sex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
 
 import java.lang.invoke.MethodHandles;
 import java.sql.Date;
@@ -14,17 +20,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
 
 @Repository
 public class HorseJdbcDao implements HorseDao {
@@ -45,8 +43,13 @@ public class HorseJdbcDao implements HorseDao {
   private static final String SQL_INSERT = "INSERT INTO " + TABLE_NAME
       + " (name, description, date_of_birth, sex, owner_id, mother_id, father_id) VALUES (?, ?, ?, ?, ?, ?, ?)";
   private static final String SQL_DELETE = "DELETE FROM " + TABLE_NAME + " WHERE id = ?";
-  private static final String SQL_SELECT_SEARCH = "SELECT * FROM " + TABLE_NAME
+  private static final String SQL_SELECT_SEARCH_PARENTS = "SELECT * FROM " + TABLE_NAME
       + " WHERE UPPER(name) like UPPER('%'||COALESCE(?, '')||'%') AND sex = ? LIMIT ?";
+  private static final String SQL_SELECT_SEARCH = "SELECT * FROM " + TABLE_NAME
+      + " LEFT JOIN owner ON horse.owner_id = owner.id"
+      + " WHERE UPPER(name) like UPPER('%'||COALESCE(?, '')||'%')"
+      + " AND sex IN( COALESCE(?,'MALE'), COALESCE(?, 'FEMALE') )"
+      + " AND date_of_birth <= ?";
 
   private final JdbcTemplate jdbcTemplate;
 
@@ -79,33 +82,49 @@ public class HorseJdbcDao implements HorseDao {
   }
 
 
-    @Override
-    public Horse update(HorseDetailDto horse) throws NotFoundException {
-      LOG.trace("update({}), persistence", horse);
-      int updated = jdbcTemplate.update(SQL_UPDATE,
-          horse.name(),
-          horse.description(),
-          horse.dateOfBirth(),
-          horse.sex().toString(),
-          horse.ownerId(),
-          horse.motherId(),
-          horse.fatherId(),
-          horse.id());
-      if (updated == 0) {
-        throw new NotFoundException("Could not update horse with ID " + horse.id() + ", because it does not exist");
+  @Override
+  public Horse update(HorseDetailDto horse) throws NotFoundException {
+    LOG.trace("update({}), persistence", horse);
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+    int updated = jdbcTemplate.update(connection -> {
+      PreparedStatement stmt = connection.prepareStatement(SQL_UPDATE,
+          Statement.RETURN_GENERATED_KEYS);
+      stmt.setString(1, horse.name());
+      stmt.setString(2, horse.description());
+      stmt.setDate(3, Date.valueOf(horse.dateOfBirth()));
+      stmt.setString(4, horse.sex().toString());
+      if (horse.ownerId() != null) {
+        stmt.setLong(5, horse.ownerId());
+      } else {
+        stmt.setNull(5, java.sql.Types.NULL);
       }
+      if (horse.mother() != null) {
+        stmt.setLong(6, horse.motherId());
+      } else {
+        stmt.setNull(6, java.sql.Types.NULL);
+      }
+      if (horse.father() != null) {
+        stmt.setLong(7, horse.fatherId());
+      } else {
+        stmt.setNull(7, java.sql.Types.NULL);
+      }
+      stmt.setLong(8, horse.id());
+      return stmt;
+    }, keyHolder);
 
-      return new Horse()
-          .setId(horse.id())
-          .setName(horse.name())
-          .setDescription(horse.description())
-          .setDateOfBirth(horse.dateOfBirth())
-          .setSex(horse.sex())
-          .setOwnerId(horse.ownerId())
-          .setMotherId(horse.motherId())
-          .setFatherId(horse.fatherId())
-          ;
+    if (updated == 0) {
+      throw new NotFoundException("Could not update horse with ID " + horse.id() + ", because it does not exist");
     }
+    return new Horse()
+        .setId(horse.id())
+        .setName(horse.name())
+        .setDescription(horse.description())
+        .setDateOfBirth(horse.dateOfBirth())
+        .setSex(horse.sex())
+        .setOwnerId(horse.ownerId())
+        .setMotherId(horse.motherId())
+        .setFatherId(horse.fatherId());
+  }
 
   @Override
   public Horse create(HorseDetailDto newHorse) {
@@ -158,12 +177,34 @@ public class HorseJdbcDao implements HorseDao {
   }
 
   @Override
-  public Collection<Horse> search(HorseSearchDto requestParameters) {
-    var query = SQL_SELECT_SEARCH;
+  public List<Horse> search(HorseSearchDto requestParameters) {
+    var query = SQL_SELECT_SEARCH_PARENTS;
     var params = new ArrayList<>();
     params.add(requestParameters.name());
     params.add(requestParameters.sex().toString());
     params.add(requestParameters.limit());
+    return jdbcTemplate.query(query, this::mapRow, params.toArray());
+  }
+
+  @Override
+  public List<Horse> getAll(HorseSearchDto parameters) {
+    var query = SQL_SELECT_SEARCH;
+    var params = new ArrayList<>();
+    params.add(parameters.name());
+    var sexParameter = parameters.sex() == null ? null : parameters.sex().toString();
+    params.add(sexParameter);
+    params.add(sexParameter);
+    LocalDate bornBeforeParameter = parameters.bornBefore() == null ? LocalDate.now() : parameters.bornBefore();
+    params.add(bornBeforeParameter);
+
+    if (parameters.description() != ""){
+      query += " AND UPPER(description) like UPPER('%'||COALESCE(?, '')||'%')";
+      params.add(parameters.description());
+    }
+    if (parameters.ownerName() != "") {
+      query += " AND CONCAT(CONCAT(UPPER(owner.first_name), ' '), UPPER(owner.last_name)) like UPPER('%'||COALESCE(?, '')||'%');";
+      params.add(parameters.ownerName());
+    }
     return jdbcTemplate.query(query, this::mapRow, params.toArray());
   }
 

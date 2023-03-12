@@ -3,7 +3,6 @@ import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {environment} from 'src/environments/environment';
 import {Horse} from '../dto/horse';
-import {Sex} from '../dto/sex';
 
 const baseUri = environment.backendUrl + '/horses';
 
@@ -14,7 +13,8 @@ export class HorseService {
 
   constructor(
     private http: HttpClient,
-  ) { }
+  ) {
+  }
 
   /**
    * Get all horses stored in the system
@@ -46,7 +46,7 @@ export class HorseService {
    * @param horse the data for the horse that should be updated
    * @return an Observable for the updated horse
    */
-  edit(id: number, horse: Horse): Observable<Horse>{
+  edit(id: number, horse: Horse): Observable<Horse> {
     return this.http.put<Horse>(
       baseUri + '/' + id,
       horse
@@ -70,7 +70,6 @@ export class HorseService {
   deleteHorse(id: number): Observable<Horse> {
     return this.http.delete<Horse>(baseUri + '/' + id);
   }
-
   searchByMotherName(name: string, limitTo: number): Observable<Horse[]> {
     const params = new HttpParams()
       .set('name', name)
@@ -84,6 +83,16 @@ export class HorseService {
       .set('name', name)
       .set('sex', 'MALE')
       .set('limit', limitTo);
-    return this.http.get<Horse[]>(baseUri, { params });
+    return this.http.get<Horse[]>(baseUri, {params});
+  }
+
+
+  /**
+   * Get all horses stored in the system matching the parameters
+   *
+   * @return observable list of found horses.
+   */
+  getHorsesByParameters(params: HttpParams): Observable<Horse[]> {
+    return this.http.get<Horse[]>(baseUri, {params});
   }
 }

@@ -3,7 +3,6 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { Owner } from '../dto/owner';
-
 const baseUri = environment.backendUrl + '/owners';
 
 @Injectable({
@@ -20,5 +19,16 @@ export class OwnerService {
       .set('name', name)
       .set('maxAmount', limitTo);
     return this.http.get<Owner[]>(baseUri, { params });
+  }
+
+  getAll(): Observable<Owner[]> {
+    return this.http.get<Owner[]>(baseUri);
+  }
+
+  create(owner: Owner): Observable<Owner> {
+    return this.http.post<Owner>(
+      baseUri,
+      owner
+    );
   }
 }
